@@ -1,14 +1,23 @@
 # PerturBench
+We present a comprehensive framework, PerturBench for predicting the effects of perturbations in single cells, designed to standardize benchmarking in this rapidly evolving field. We include a user-friendly platform, diverse datasets, metrics for fair model comparison, and detailed performance analysis.
 
-## Installation
-
-Installing PerturBench
-
+If you use PerturBench in your work, please consider citing [Wu, Wershof, Shmon, Nassar, Osinski, and Eksi et al, 2024](https://arxiv.org/abs/2408.10609):
 ```
-conda create -n [env-name] python=3.10
-conda activate [env-name]
+@misc{wu2024perturbenchbenchmarkingmachinelearning,
+      title={PerturBench: Benchmarking Machine Learning Models for Cellular Perturbation Analysis}, 
+      author={Yan Wu and Esther Wershof and Sebastian M Schmon and Marcel Nassar and Błażej Osiński and Ridvan Eksi and Kun Zhang and Thore Graepel},
+      year={2024},
+      eprint={2408.10609},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2408.10609}, 
+}
+```
 
 ## Install PerturBench
+```
+conda create -n [env-name] python=3.11
+conda activate [env-name]
 cd [/path/to/PerturBench/]
 pip3 install -e .
 # or
@@ -16,17 +25,32 @@ pip3 install -e .[cli]
 ```
 for command line extras such as the `rich` package, which gives you neater progress bars.
 
-## Datasets
+## Downloading and Preparing Datasets
+
+### Dataset Access
 To reproduce the datasets used for benchmarking, first create a local cache directory (i.e. `~/perturbench_data`) and set the `data_cache_dir` variable in the curation notebooks in `notebooks/neurips2024/data_curation` to the cache you created. Please also set the `data_dir` variable in `src/configs/paths/default.yaml` to the correct data cache path as well.
 
-Once you've set the correct local cache paths, please run the curation notebooks and scripts which will download the datasets, curate the metadata, and run standard scRNA-seq preprocessing with scanpy. Note that the McFalineFigueroa23 data curation requires two steps.
+Once you've set the correct local cache paths, please run the curation notebooks and scripts which will download the datasets, curate the metadata, and run standard scRNA-seq preprocessing with scanpy. Note that the McFalineFigueroa23 and Jiang24 data curation requires two steps as the downloaded files are Seurat objects and need to be converted to anndata h5ad files.
 
-We're currently working on building a data curation class to automate data download and preprocessing so stay tuned!
+We also provide accessor functions to automatically download and cache the Srivatsan20, Norman19, and Frangieh21 datasets as either [AnnData objects](https://anndata.readthedocs.io/en/latest/) or a [PyTorch Datasets](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html).
+```
+from perturbench.data.accessors.srivatsan20 import Sciplex3
+
+srivatsan20_accessor = Sciplex3()
+adata = srivatsan20_accessor.get_anndata() ## Get the preprocessed anndata object
+torch_dataset = srivatsan20_accessor.get_dataset() ## Get a PyTorch Dataset
+```
+
+### Data Splitting
+The Frangieh21 and Jiang24 datasets require manual splits that can be generated using the `notebooks/build_jiang24_frangieh21_splits.ipynb` notebook. For the McFalineFigueroa23 data scaling experiments and the Srivatsan20 imbalance experiments, you can generate the custom splits using the `notebooks/build_data_scaling_splits.ipynb` and `notebooks/build_imbalance_splits.ipynb` notebooks respectively.
 
 ## Usage
 
-### Training Script
-A training script that is integrated with the configuration system can be found under `src/perturbench/modelcore/train.py`. This can be executed as follows:
+### Evaluator Class
+If you just want to use our suite of metrics on your own custom model or generated predictions, we provide an `Evaluator` class. This class requires predicted scRNA-seq responses to perturbations as anndata objects, and will return a dataframe of average metrics for each model. More in-depth examples of using the `Evaluator` class can be found in the `notebooks/demos/evaluator_demo.ipynb` notebook.
+
+### Hydra Training Script
+To run end-to-end model training, inference, and evaluation, we provide a training script that is integrated with the Hydra configuration system. This script can be found under `src/perturbench/modelcore/train.py` and can be executed as follows:
 
 ```python
 python <path-to-repo-folder>/src/perturbench/modelcore/train.py <config-options>
@@ -73,9 +97,6 @@ predict <config-options>
 ```
 
 The configuration options are controlled by the default `src/perturbench/configs/predict.yaml` config file, and further discussed in the Configuration System section.
-
-### Standalone evaluation using the Evaluator class
-In addition to the automated evaluation code, we offer an `Evaluator` class that enables users to run our benchmarking suite using already generated model predictions. An example of how to use the `Evaluator` class is in `notebooks/demos/evaluator_demo.ipynb`.
 
 ### Configuration System
 
@@ -150,6 +171,12 @@ Example command to run HPO on a single instance with multiple GPUs:
 CUDA_VISIBLE_DEVICES=0,1 train hpo=latent_additive_hpo experiment=neurips2024/norman19/latent_best_params_norman19
 ```
 
+### Reproducing arXiv results
+To reproduce the results from our ArXiv preprint, we provide best-params configs for each model and dataset. For example, to reproduce the linear model results for the Norman19 dataset, you can run:
+```
+train experiment=neurips2024/norman19/linear_best_params_norman19
+```
+
 ## Model development requirements
 
 When creating a new model, you'll need to:
@@ -187,9 +214,16 @@ def predict(self, batch):
     return predicted_perturbed_expression
 ```
 
-## Data preprocessing
+## Adding a new dataset
+This section describes how to add a new dataset to benchmark against.
 
-The default preprocessing pipeline applies standard log-normalization and filters for highly variable or differentially expressed genes. Specifically the counts for each cell are divided by the total counts for that cell, multiplied by a scaling factor (`1e4`), and then log-transformed. The dataset is then subset to the top 4000 highly variable genes and top 50 differentially expressed genes per perturbation (computed on a per covariate basis). If the perturbations are genetic, those genes are also included in the expression matrix by default. Datasets ending in `_preprocessed.h5ad` have been preprocessed.
+### Data curation
+First download the dataset from GEO, figshare, or the desired database. [scPerturb](http://projects.sanderlab.org/scperturb/) and [pertpy](https://pertpy.readthedocs.io/en/latest/usage/usage.html#datasets) provide indexes of perturbational datasets with single cell readouts that might be of interest.
+
+If the dataset is not stored as an [anndata](https://anndata.readthedocs.io/en/latest/tutorials/notebooks/getting-started.html) file, you will need to convert it to an anndata file. It also may help to clean up some of the metadata columns. Example scripts of converting Seurat objects to anndata and metadata curation notebooks can be found at `notebooks/curation`.
+
+### Data preprocessing
+Most downloaded datasets will contain raw counts, which will need to be processed before model training. We provide a default preprocessing pipeline that applies standard log-normalization and filters for highly variable or differentially expressed genes. Specifically the counts for each cell are divided by the total counts for that cell, multiplied by a scaling factor (`1e4`), and then log-transformed. The dataset is then subset to the top 4000 highly variable genes and top 50 differentially expressed genes per perturbation (computed on a per covariate basis). If the perturbations are genetic, those genes are also included in the expression matrix by default. Datasets ending in `_preprocessed.h5ad` have been preprocessed.
 
 The unnormalized raw counts can be accessed in the `adata.layers['counts']` slot. To use raw counts instead of log-normalized expression add
 ```
@@ -198,4 +232,7 @@ data:
 ```
 to your experiment config.
 
-To preprocess a new dataset, use the `preprocess` function in `src/perturbench/analysis/preprocess.py`.
+To preprocess a new dataset, use the `preprocess` function in `src/analysis/preprocess.py`.
+
+### Data config
+Once the dataset is preprocessed, you will need to create a dataset config file where you will specify which metadata columns contain the perturbations and covariates, as well as dataloader parameters. Example configs can be found at `src/configs/data`. You will also specifically need to specify how you want to split the data. You can select from a predefined split in the `src/configs/data/splitter` directory such as cross cell type or combination prediction splits. You can also specify a custom split saved as a `csv`. The data config is also where you specify the evaluation parameters, such as which metrics you want to evaluate. Configs that specify those parameters can be found in `src/configs/data/evaluation`.

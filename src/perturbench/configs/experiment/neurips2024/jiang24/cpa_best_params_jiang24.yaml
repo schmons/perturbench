@@ -1,0 +1,35 @@
+# @package _global_
+
+defaults:
+- override /model: cpa
+- override /callbacks: default
+- override /data: jiang24
+
+trainer:
+  max_epochs: 400
+  min_epochs: 5
+
+model:
+  adv_classifier_hidden_dim: 327
+  adv_classifier_n_layers: 1
+  adv_steps: 2
+  adv_weight: 1.9624723043619903
+  dropout: 0.6000000000000001
+  elementwise_affine: false
+  hidden_dim: 5376
+  kl_weight: 14.888809388097622
+  lr: 9.070559109677311e-05
+  n_genes: null
+  n_latent: 512
+  n_layers_covar_emb: 1
+  n_layers_encoder: 1
+  n_layers_pert_emb: 1
+  n_perts: null
+  penalty_weight: 0.5877009927250864
+  recon_loss: gauss
+  softplus_output: false
+  variational: true
+  wd: 6.286006913270941e-08
+
+data:
+  add_controls: false

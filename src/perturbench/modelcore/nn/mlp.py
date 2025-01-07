@@ -1,6 +1,21 @@
 import torch
 import torch.nn as nn
+from torch.distributions import RelaxedBernoulli
 
+def gumbel_softmax_bernoulli(probs, temperature=0.5):
+   # Create a RelaxedBernoulli distribution with the specified temperature
+   relaxed_bernoulli = RelaxedBernoulli(temperature, probs=probs)
+  
+   # Sample from the relaxed distribution
+   soft_sample = relaxed_bernoulli.rsample()
+  
+   # Quantize the soft sample to get a hard sample
+   hard_sample = (soft_sample > 0.5).float()
+  
+   # Use straight-through estimator
+   st_sample = hard_sample - soft_sample.detach() + soft_sample
+  
+   return st_sample
 
 class MLP(nn.Module):
     def __init__(

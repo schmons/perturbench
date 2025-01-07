@@ -12,10 +12,8 @@ latent_dim: 55
 dropout: 0.2
 inject_covariates_encoder: False
 inject_covariates_decoder: False
-mean_field_encoding: False
-sparse_additive_mechanism: True
 mask_prior_probability: 0.01
-simple_latent: True
+softplus_output: True
 
 
 ## Optimizer params

@@ -1,0 +1,35 @@
+# @package _global_
+
+defaults:
+- override /model: cpa
+- override /callbacks: default
+- override /data: frangieh21
+
+trainer:
+  max_epochs: 400
+  min_epochs: 5
+
+model:
+  adv_classifier_hidden_dim: 400
+  adv_classifier_n_layers: 1
+  adv_steps: 3
+  adv_weight: 0.9296158019122399
+  dropout: 0.2
+  elementwise_affine: false
+  hidden_dim: 4352
+  kl_weight: 9.393160502194625
+  lr: 1.639623277694398e-05
+  n_genes: null
+  n_latent: 256
+  n_layers_covar_emb: 1
+  n_layers_encoder: 1
+  n_layers_pert_emb: 3
+  n_perts: null
+  penalty_weight: 3.3843905030378734
+  recon_loss: gauss
+  softplus_output: false
+  variational: true
+  wd: 1.9041225518254116e-07
+
+data:
+  add_controls: false

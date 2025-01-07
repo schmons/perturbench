@@ -37,8 +37,6 @@ dependencies = [
     'optuna',
     'ray',
     'python-dotenv',
-    'hydra-optuna-sweeper@git+https://github.com/facebookresearch/hydra.git#subdirectory=plugins/hydra_optuna_sweeper',
-    'hydra-ray-launcher@git+https://github.com/facebookresearch/hydra.git#subdirectory=plugins/hydra_ray_launcher',
 ]
 dynamic = ["version"]
 
