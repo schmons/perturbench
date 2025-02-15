@@ -37,6 +37,7 @@ class LatentAdditive(PerturbationModel):
         n_layers: int = 2,
         encoder_width: int = 128,
         latent_dim: int = 32,
+        loss_type: str = "mse",
         lr: float | None = None,
         wd: float | None = None,
         lr_scheduler_freq: int | None = None,
@@ -61,6 +62,7 @@ class LatentAdditive(PerturbationModel):
             n_layers: Number of layers in the encoder/decoder
             encoder_width: Width of the hidden layers in the encoder/decoder
             latent_dim: Dimension of the latent space
+            loss_type: Type of loss to use for training
             lr: Learning rate
             wd: Weight decay
             lr_scheduler_freq: How often the learning rate scheduler checks
@@ -138,6 +140,10 @@ class LatentAdditive(PerturbationModel):
         self.sparse_additive_mechanism = sparse_additive_mechanism
         self.inject_covariates_encoder = inject_covariates_encoder
         self.inject_covariates_decoder = inject_covariates_decoder
+        self.loss_type = loss_type
+
+        if loss_type not in ["mse", "mmd"]:
+            raise ValueError("loss_type must be either 'mse' or 'mmd'")
 
     def forward(
         self,
@@ -187,7 +193,32 @@ class LatentAdditive(PerturbationModel):
         predicted_perturbed_expression = self.forward(
             control_input, perturbation, covariates
         )
-        loss = F.mse_loss(predicted_perturbed_expression, observed_perturbed_expression)
+        
+        if self.loss_type == "mse":
+            loss = F.mse_loss(predicted_perturbed_expression, observed_perturbed_expression)
+        else:  # mmd
+            total_mmd_loss = torch.tensor(0.0, device=self.device)
+            n_valid_groups = 0
+            
+            # Get unique perturbation combinations
+            pert_combinations = torch.unique(perturbation, dim=0)
+            print(pert_combinations)
+            
+            for pert in pert_combinations:
+                # Find indices where this perturbation combination occurs
+                mask = torch.all(perturbation == pert, dim=1)
+                if torch.sum(mask) > 1:  # Only compute MMD if we have multiple samples
+                    pred_group = predicted_perturbed_expression[mask]
+                    obs_group = observed_perturbed_expression[mask]
+                    total_mmd_loss += self.compute_mmd(pred_group, obs_group)
+                    n_valid_groups += 1
+            
+            if n_valid_groups > 0:
+                loss = total_mmd_loss / n_valid_groups
+            else:
+                # Fallback to MSE if no valid groups for MMD
+                loss = F.mse_loss(predicted_perturbed_expression, observed_perturbed_expression)
+                
         self.log("train_loss", loss, prog_bar=True, logger=True, batch_size=len(batch))
         return loss
 
