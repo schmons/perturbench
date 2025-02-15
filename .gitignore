@@ -175,6 +175,7 @@ cython_debug/
 
 # Data
 *.gz
+*.h5ad
 
 # Machine Learning
 tensorboard/
