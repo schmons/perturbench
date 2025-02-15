@@ -21,6 +21,7 @@ data:
     max_heldout_fraction_per_covariate: 0.7
 
 model:
+  loss_type: 'mmd'
   inject_covariates_encoder: False
   inject_covariates_decoder: False
   dropout: 0.1

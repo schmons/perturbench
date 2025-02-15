@@ -145,6 +145,32 @@ class LatentAdditive(PerturbationModel):
         if loss_type not in ["mse", "mmd"]:
             raise ValueError("loss_type must be either 'mse' or 'mmd'")
 
+    def compute_mmd(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """
+        Compute Maximum Mean Discrepancy between two samples
+        Args:
+            x: First sample (n x d)
+            y: Second sample (m x d)
+        Returns:
+            MMD value
+        """
+        xx = torch.mm(x, x.t())
+        yy = torch.mm(y, y.t())
+        xy = torch.mm(x, y.t())
+        
+        rx = (xx.diag().unsqueeze(0).expand_as(xx))
+        ry = (yy.diag().unsqueeze(0).expand_as(yy))
+        
+        dxx = rx.t() + rx - 2.*xx
+        dyy = ry.t() + ry - 2.*yy
+        dxy = rx.t() + ry - 2.*xy
+        
+        XX = torch.mean(torch.exp(-0.5*dxx))
+        YY = torch.mean(torch.exp(-0.5*dyy))
+        XY = torch.mean(torch.exp(-0.5*dxy))
+        
+        return XX + YY - 2.*XY
+
     def forward(
         self,
         control_input: torch.Tensor,
@@ -202,7 +228,7 @@ class LatentAdditive(PerturbationModel):
             
             # Get unique perturbation combinations
             pert_combinations = torch.unique(perturbation, dim=0)
-            print(pert_combinations)
+            # print(pert_combinations)
             
             for pert in pert_combinations:
                 # Find indices where this perturbation combination occurs
